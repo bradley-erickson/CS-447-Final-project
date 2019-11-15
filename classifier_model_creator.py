@@ -15,6 +15,10 @@ import numpy as np
 import tensorflow as tf
 
 ## keras imports
+from keras.models import Sequential
+from keras.layers import Dense, Dropout, Flatten, Lambda
+from keras.layers import Conv2D, MaxPooling2D, Cropping2D
+from keras.optimizers import SGD
 
 
 # methods
@@ -43,7 +47,28 @@ def get_car_pic_matrix(file_name, crop_points, size):
 
 
 ## model initialization
+def initialize_model(input_shape, classes=196):
+    model = Sequential()
+     
+    model.add(Conv2D(32, (5,5), activation="relu", strides=(2,2), input_shape=input_shape))
+    model.add(MaxPooling2D(pool_size=(2,2), strides=(1,1), padding="same"))
+
+    model.add(Conv2D(32, (5,5), activation="relu", strides=(2,2)))
+    model.add(MaxPooling2D(pool_size=(2,2), strides=(1,1), padding="same"))
     
+    model.add(Flatten())
+
+    model.add(Dense(512, activation='relu'))
+    model.add(Dropout(0.5))
+    
+    model.add(Dense(classes, activation="softmax"))
+    
+    sgd = SGD(lr=0.01, clipvalue=0.5)
+    model.compile(loss=keras.losses.categorical_crossentropy, optimizer=sgd)
+    model.summary()
+    #print(model)
+    
+    return model
 
 ## training process
     
@@ -64,7 +89,7 @@ DATA_DIR = "./data"
 IMAGE_DIR = DATA_DIR + "/images/"
 RESIZE = [200, 200]
 LIST_DATA = get_list_from_csv(DATA_DIR + "/crop_size.csv")
-
+model1 = initialize_model(input_shape=(250,200,3))
 ## specific to first image for testing
 image_number = 1
 ### image_data = [min_x, min_y, max_x, max_y, classification, image_name]
