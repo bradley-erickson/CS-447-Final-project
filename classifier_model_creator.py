@@ -91,7 +91,7 @@ def training(data_dir, model, data, batch, epoch):
     random.shuffle(data)
     
     # model callbacks
-    callback_visualizations = TensorBoard(histogram_freq=1, batch_size=batch, write_images=True)
+    callback_visualizations = TensorBoard(histogram_freq=0, batch_size=batch, write_images=True)
     callback_checkpoints = ModelCheckpoint('model_checkpoint.h5', save_best_only=True)
     
     plot_info = model.fit_generator(create_data_generator(image_dir, data, resize, 0, cutoff, batch),
@@ -162,7 +162,7 @@ def run_model():
     
     model1 = initialize_model((200,200,3), 196)
     
-    model1 = training(DATA_DIR, model1, LIST_DATA, 16, 10)
+    model1 = training(DATA_DIR, model1, LIST_DATA, 32, 10)
     
     save_model_to_json(model1, name="car-classifier")
     
