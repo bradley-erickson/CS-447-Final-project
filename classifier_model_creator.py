@@ -17,7 +17,7 @@ import random
 import tensorflow as tf
 
 ## keras imports
-from keras.models import Sequential
+from keras.models import Sequential, model_from_json
 from keras.layers import Dense, Dropout, Flatten, Lambda
 from keras.layers import Conv2D, MaxPooling2D, Cropping2D
 from keras.callbacks import ModelCheckpoint, TensorBoard
@@ -49,6 +49,41 @@ def get_car_pic_matrix(file_name, crop_points, size):
     return image
 
 
+def create_data_generator(path, data, size, start, cutoff, batch, test=False):
+    """ receives chunk of data list and turns it into a generator """
+    
+    while True:
+        images = []
+        labels = []
+        for i in range(start, start + batch):
+            image_data = data[i]
+            label = np.zeros(196)
+            if (test):
+                image_path = path + image_data[4]
+            else:
+                image_path = path + image_data[5]
+                label[int(image_data[4]) - 1] = 1
+                
+            crop_points = [int(i) for i in image_data[:4]]
+            image = get_car_pic_matrix(image_path, crop_points, size)
+            
+            
+            images.append(image)
+            labels.append(label)
+        
+        images = np.array(images)
+        labels = np.array(labels)
+        
+        if (test):
+            yield(images)
+        else:
+            yield(images,labels)
+            
+        start += batch
+        if start + batch > cutoff:
+            start = 0
+                
+            
 ## model initialization
 def initialize_model(input_shape, classes):
     """ initialize the model parameters and layers """
@@ -75,8 +110,7 @@ def initialize_model(input_shape, classes):
     return model
 
 
-## training process
-### initialize callbacks and data for training
+## train model
 def training(data_dir, model, data, batch, epoch):
     """ train the model """
     
@@ -103,46 +137,17 @@ def training(data_dir, model, data, batch, epoch):
                                     )
     
     return model
-
-
-### create generators for training and validation
-def create_data_generator(path, data, size, start, cutoff, batch):
-    """ receives chunk of data list and turns it into a generator """
-    
-    while True:
-        images = []
-        labels = []
-        for i in range(start, start + batch):
-            image_data = data[i]
-            image_path = path + image_data[5]
-            crop_points = [int(i) for i in image_data[:4]]
-            image = get_car_pic_matrix(image_path, crop_points, size)
-            
-            label = np.zeros(196)
-            label[int(image_data[4]) - 1] = 1
-            
-            images.append(image)
-            labels.append(label)
-        
-        images = np.array(images)
-        labels = np.array(labels)
-        
-        yield(images,labels)
-        
-        start += batch
-        if start + batch > cutoff:
-            start = 0
         
 
 ## saving model
 def save_model_to_json(model, name="model"):
     """ save the model to a json document """
     
-    model.save_weights(name+'.h5')
-    model_json  = model.to_json()
     title = get_model_title_string(name)
+    model.save_weights(title + '.h5')
+    model_json  = model.to_json()
     with open(title, 'w') as f:
-        json.dump(model_json, f)
+        f.write(model_json)
         
         
 def get_model_title_string(name):
@@ -153,7 +158,8 @@ def get_model_title_string(name):
     title = date_time + "_" + name + ".json"
     return title
 
-   
+
+## create the model
 def run_model():
     """ run everything """
     
@@ -165,6 +171,41 @@ def run_model():
     model1 = training(DATA_DIR, model1, LIST_DATA, 32, 10)
     
     save_model_to_json(model1, name="car-classifier")
+
+
+## load model
+def load_model_info(file):
+    """ load the model and weights from a file """
     
+    model_file = open(file + '.json', 'r')
+    loaded_model = model_file.read()
+    model_file.close()
+    model = model_from_json(loaded_model)    
+    model.load_weights(file + '.h5')
+    return model
+
+
+## evalate testing data
+def evaluate_testing(model_file):
+    """ evaluate the model against trainging set """
+    
+    # load the model in
+    model = load_model_info(model_file)
+    sgd = SGD(lr=0.01, clipvalue=0.5)
+    model.compile(loss=keras.losses.categorical_crossentropy, optimizer=sgd)
+    
+    # variables needed for prediction
+    DATA_DIR = "./test_data"
+    LIST_DATA = get_list_from_csv(DATA_DIR + "/crop_size.csv")
+    image_dir = DATA_DIR + "/images/"
+    total_test = len(LIST_DATA)
+    resize = [200, 200]
+    
+    prediction = model.predict_generator(create_data_generator(image_dir, LIST_DATA, resize, 0, total_test, 32, test=True))
+    
+    return prediction
+
 
 run_model()
+pred = evaluate_testing('2019-11-17_car-classifier')
+print (pred)
