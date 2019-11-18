@@ -10,16 +10,15 @@
 import csv
 import cv2
 import datetime
-import json
 import keras
+import matplotlib.pyplot as plt
 import numpy as np
 import random
-import tensorflow as tf
 
 ## keras imports
 from keras.models import Sequential, model_from_json
 from keras.layers import Dense, Dropout, Flatten, Lambda
-from keras.layers import Conv2D, MaxPooling2D, Cropping2D
+from keras.layers import Conv2D, MaxPooling2D
 from keras.callbacks import ModelCheckpoint, TensorBoard
 from keras.optimizers import SGD
 
@@ -90,17 +89,29 @@ def initialize_model(input_shape, classes):
     
     model = Sequential()
      
-    model.add(Conv2D(32, (5,5), activation="relu", strides=(2,2), input_shape=input_shape))
+    model.add(Lambda(lambda x: (2*x / 255.0) - 1.0, input_shape=input_shape))
+
+    model.add(Conv2D(32, (5,5), activation="relu", strides=(2,2)))
     model.add(MaxPooling2D(pool_size=(2,2), strides=(1,1), padding="same"))
 
-    #model.add(Conv2D(32, (5,5), activation="relu", strides=(2,2)))
-    #model.add(MaxPooling2D(pool_size=(2,2), strides=(1,1), padding="same"))
+    model.add(Conv2D(64, (5,5), activation="relu", strides=(2,2)))
     
+    model.add(Conv2D(64, (3,3), activation="relu", strides=(2,2)))
+    
+    model.add(Conv2D(128, (2,2), activation="relu", strides=(2,2)))
+
+    # Classification
     model.add(Flatten())
 
     model.add(Dense(512, activation='relu'))
     model.add(Dropout(0.5))
-    
+
+    model.add(Dense(512, activation='relu'))
+    model.add(Dropout(0.5))
+
+    model.add(Dense(216, activation='relu'))
+    model.add(Dropout(0.5))
+
     model.add(Dense(classes, activation="softmax"))
     
     sgd = SGD(lr=0.01, clipvalue=0.5)
@@ -118,7 +129,7 @@ def training(data_dir, model, data, batch, epoch):
     image_dir = data_dir + "/images/"
     resize = [200, 200]
     total_length = len(data)
-    cutoff = int(total_length*0.9)
+    cutoff = int(total_length*0.8)
     
     # shuffle data
     random.seed(447)
@@ -135,27 +146,40 @@ def training(data_dir, model, data, batch, epoch):
                                     epochs=epoch,
                                     callbacks=[callback_checkpoints,callback_visualizations]
                                     )
+    plot_model(plot_info)
     
     return model
         
+
+## plot model
+def plot_model(info):
+    """ display a plot of the model """
+    plt.plot(info.history['loss'])
+    plt.plot(info.history['val_loss'])
+    plt.title('model mean squared error loss')
+    plt.ylabel('mean squared error loss')
+    plt.xlabel('epoch')
+    plt.legend(['training set', 'validation set'], loc='upper right')
+    plt.show()
+
 
 ## saving model
 def save_model_to_json(model, name="model"):
     """ save the model to a json document """
     
-    title = get_model_title_string(name)
+    title = get_date_title_string(name)
     model.save_weights(title + '.h5')
     model_json  = model.to_json()
-    with open(title, 'w') as f:
+    with open(title + '.json', 'w') as f:
         f.write(model_json)
         
         
-def get_model_title_string(name):
+def get_date_title_string(name):
     """ create the model json name """
     
     date_time = str(datetime.date.today())
     date_time = date_time.replace(' ', '_').replace(':', '-')
-    title = date_time + "_" + name + ".json"
+    title = date_time + "_" + name
     return title
 
 
@@ -168,7 +192,7 @@ def run_model():
     
     model1 = initialize_model((200,200,3), 196)
     
-    model1 = training(DATA_DIR, model1, LIST_DATA, 32, 10)
+    model1 = training(DATA_DIR, model1, LIST_DATA, 16, 20)
     
     save_model_to_json(model1, name="car-classifier")
 
@@ -201,11 +225,24 @@ def evaluate_testing(model_file):
     total_test = len(LIST_DATA)
     resize = [200, 200]
     
-    prediction = model.predict_generator(create_data_generator(image_dir, LIST_DATA, resize, 0, total_test, 32, test=True))
+    prediction = model.predict_generator(create_data_generator(image_dir, LIST_DATA, resize, 0, total_test, 32, test=True), steps=10)
     
     return prediction
 
 
+## return predicted data
+def write_predicted_data(predict):
+    """ write the predicted data to the correct format """
+    
+    test_title = get_date_title_string('test')
+    file = open(test_title + '.txt', "w")
+    for p in predict:
+        data = np.argwhere(p == 1)
+        file.write(str(data[0][0] + 1) + "\n")
+    file.close()
+    
+
+
 run_model()
 pred = evaluate_testing('2019-11-17_car-classifier')
-print (pred)
+write_predicted_data(pred)
