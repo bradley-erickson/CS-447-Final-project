@@ -11,6 +11,7 @@ import csv
 import cv2
 import datetime
 import keras
+import math
 import matplotlib.pyplot as plt
 import numpy as np
 import random
@@ -18,7 +19,7 @@ import random
 ## keras imports
 from keras.models import Sequential, model_from_json
 from keras.layers import Dense, Dropout, Flatten, Lambda
-from keras.layers import Conv2D, MaxPooling2D
+from keras.layers import Conv2D, MaxPooling2D, MaxPool2D, BatchNormalization
 from keras.callbacks import ModelCheckpoint, TensorBoard
 from keras.optimizers import SGD
 
@@ -87,6 +88,7 @@ def create_data_generator(path, data, size, start, cutoff, batch, test=False):
 def initialize_model(input_shape, classes):
     """ initialize the model parameters and layers """
     
+    """
     model = Sequential()
      
     model.add(Lambda(lambda x: (2*x / 255.0) - 1.0, input_shape=input_shape))
@@ -116,9 +118,41 @@ def initialize_model(input_shape, classes):
     
     sgd = SGD(lr=0.01, clipvalue=0.5)
     model.compile(loss=keras.losses.categorical_crossentropy, optimizer=sgd)
+
     model.summary()
     
     return model
+    """
+    
+
+    cnn = Sequential()
+    cnn.add(Conv2D(filters = 16, kernel_size = (5,5), padding = 'same', activation = 'relu', input_shape = input_shape))
+    cnn.add(MaxPooling2D(pool_size = (2,2)))
+    cnn.add(BatchNormalization(axis = 1))
+    cnn.add(Dropout(0.22))
+    cnn.add(Conv2D(filters = 32, kernel_size = (5,5), padding = 'same', activation = 'relu', input_shape = input_shape))
+    cnn.add(MaxPooling2D(pool_size = (2,2)))
+    cnn.add(BatchNormalization(axis = 1))
+    cnn.add(Dropout(0.22))
+    cnn.add(Conv2D(filters = 64, kernel_size = (4,4), padding = 'same', activation = 'relu', input_shape = input_shape))
+    cnn.add(MaxPooling2D(pool_size = (2,2)))
+    cnn.add(BatchNormalization(axis = 1))
+    cnn.add(Dropout(0.2))
+    cnn.add(Conv2D(filters = 96, kernel_size = (3,3), padding = 'same', activation = 'relu', input_shape = input_shape))
+    cnn.add(MaxPooling2D(pool_size = (2,2)))
+    cnn.add(BatchNormalization(axis = 1))
+    cnn.add(Flatten())
+    cnn.add(Dropout(0.18))
+    cnn.add(Dense(512, activation = 'relu'))
+    cnn.add(BatchNormalization())
+    cnn.add(Dense(512, activation = 'relu'))
+    cnn.add(BatchNormalization())
+    cnn.add(Dense(196, activation = 'sigmoid'))
+    cnn.compile(optimizer = 'adam', loss = 'categorical_crossentropy', metrics = ['accuracy'])
+    cnn.summary()
+    
+    return cnn
+    
 
 
 ## train model
@@ -127,22 +161,27 @@ def training(data_dir, model, data, batch, epoch):
     
     # variables
     image_dir = data_dir + "/images/"
+    
+    val_dir = "./test_data/images/"
+    val_data = get_list_from_csv("./test_data/crop_size.csv")
+    val_size = len(val_data)
+    
     resize = [200, 200]
     total_length = len(data)
     cutoff = int(total_length*0.8)
     
     # shuffle data
-    random.seed(447)
-    random.shuffle(data)
+    #random.seed(447)
+    #random.shuffle(data)
     
     # model callbacks
     callback_visualizations = TensorBoard(histogram_freq=0, batch_size=batch, write_images=True)
     callback_checkpoints = ModelCheckpoint('model_checkpoint.h5', save_best_only=True)
     
-    plot_info = model.fit_generator(create_data_generator(image_dir, data, resize, 0, cutoff, batch),
-                                    steps_per_epoch=int(cutoff/batch),
-                                    validation_data=create_data_generator(image_dir, data, resize, cutoff, total_length, batch),
-                                    validation_steps=(total_length-cutoff)/batch,
+    plot_info = model.fit_generator(create_data_generator(image_dir, data, resize, 0, total_length, batch),
+                                    steps_per_epoch=256,
+                                    validation_data=create_data_generator(val_dir, val_data, resize, 0, val_size, batch),
+                                    validation_steps=val_size//batch,
                                     epochs=epoch,
                                     callbacks=[callback_checkpoints,callback_visualizations]
                                     )
@@ -154,12 +193,12 @@ def training(data_dir, model, data, batch, epoch):
 ## plot model
 def plot_model(info):
     """ display a plot of the model """
-    plt.plot(info.history['loss'])
-    plt.plot(info.history['val_loss'])
-    plt.title('model mean squared error loss')
-    plt.ylabel('mean squared error loss')
-    plt.xlabel('epoch')
-    plt.legend(['training set', 'validation set'], loc='upper right')
+    plt.plot(info.history['acc'])
+    plt.plot(info.history['val_acc'])
+    plt.title('Accuracy of model')
+    plt.ylabel('Accuracy')
+    plt.xlabel('Epoch')
+    plt.legend(['Training', 'Validation'], loc='lower right')
     plt.show()
 
 
@@ -178,6 +217,10 @@ def get_date_title_string(name):
     """ create the model json name """
     
     date_time = str(datetime.date.today())
+    
+    # TODO: only keep for overnight training
+    date_time = 'latest-run'
+    
     date_time = date_time.replace(' ', '_').replace(':', '-')
     title = date_time + "_" + name
     return title
@@ -192,7 +235,7 @@ def run_model():
     
     model1 = initialize_model((200,200,3), 196)
     
-    model1 = training(DATA_DIR, model1, LIST_DATA, 16, 20)
+    model1 = training(DATA_DIR, model1, LIST_DATA, 64, 10)
     
     save_model_to_json(model1, name="car-classifier")
 
@@ -225,7 +268,7 @@ def evaluate_testing(model_file):
     total_test = len(LIST_DATA)
     resize = [200, 200]
     
-    prediction = model.predict_generator(create_data_generator(image_dir, LIST_DATA, resize, 0, total_test, 32, test=True), steps=10)
+    prediction = model.predict_generator(create_data_generator(image_dir, LIST_DATA, resize, 0, total_test, 50, test=True), steps=10)
     
     return prediction
 
@@ -236,13 +279,14 @@ def write_predicted_data(predict):
     
     test_title = get_date_title_string('test')
     file = open(test_title + '.txt', "w")
+    print (str(len(predict)))
     for p in predict:
-        data = np.argwhere(p == 1)
-        file.write(str(data[0][0] + 1) + "\n")
+        data = np.argmax(p)
+        file.write(str(data + 1) + "\n")
     file.close()
     
 
 
 run_model()
-pred = evaluate_testing('2019-11-17_car-classifier')
-write_predicted_data(pred)
+#pred = evaluate_testing('latest-run_car-classifier')
+#write_predicted_data(pred)
