@@ -1,5 +1,5 @@
-data/
+data/images/
 logs/
-test_data/
+test_data/images/
 *.json
 *.h5
