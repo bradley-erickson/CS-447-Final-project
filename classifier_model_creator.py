@@ -92,23 +92,33 @@ def initialize_model(input_shape, classes):
     cnn.add(MaxPooling2D(pool_size = (2,2)))
     cnn.add(BatchNormalization(axis = 1))
     cnn.add(Dropout(0.22))
+    
     cnn.add(Conv2D(filters = 32, kernel_size = (5,5), padding = 'same', activation = 'relu', input_shape = input_shape))
     cnn.add(MaxPooling2D(pool_size = (2,2)))
     cnn.add(BatchNormalization(axis = 1))
     cnn.add(Dropout(0.22))
+    
     cnn.add(Conv2D(filters = 64, kernel_size = (4,4), padding = 'same', activation = 'relu', input_shape = input_shape))
     cnn.add(MaxPooling2D(pool_size = (2,2)))
     cnn.add(BatchNormalization(axis = 1))
     cnn.add(Dropout(0.2))
+    
     cnn.add(Conv2D(filters = 96, kernel_size = (3,3), padding = 'same', activation = 'relu', input_shape = input_shape))
     cnn.add(MaxPooling2D(pool_size = (2,2)))
     cnn.add(BatchNormalization(axis = 1))
-    cnn.add(Flatten())
     cnn.add(Dropout(0.18))
+    
+    cnn.add(Flatten())
+    
     cnn.add(Dense(512, activation = 'relu'))
-    cnn.add(BatchNormalization())
+    cnn.add(Dropout(0.5))
+    
     cnn.add(Dense(512, activation = 'relu'))
-    cnn.add(BatchNormalization())
+    cnn.add(Dropout(0.5))
+    
+    cnn.add(Dense(256, activation = 'relu'))
+    cnn.add(Dropout(0.5))
+    
     cnn.add(Dense(196, activation = 'sigmoid'))
     cnn.compile(optimizer = 'adam', loss = 'categorical_crossentropy', metrics = ['accuracy'])
     cnn.summary()
