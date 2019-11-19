@@ -11,7 +11,6 @@ import csv
 import cv2
 import datetime
 import keras
-import math
 import matplotlib.pyplot as plt
 import numpy as np
 import random
@@ -88,43 +87,6 @@ def create_data_generator(path, data, size, start, cutoff, batch, test=False):
 def initialize_model(input_shape, classes):
     """ initialize the model parameters and layers """
     
-    """
-    model = Sequential()
-     
-    model.add(Lambda(lambda x: (2*x / 255.0) - 1.0, input_shape=input_shape))
-
-    model.add(Conv2D(32, (5,5), activation="relu", strides=(2,2)))
-    model.add(MaxPooling2D(pool_size=(2,2), strides=(1,1), padding="same"))
-
-    model.add(Conv2D(64, (5,5), activation="relu", strides=(2,2)))
-    
-    model.add(Conv2D(64, (3,3), activation="relu", strides=(2,2)))
-    
-    model.add(Conv2D(128, (2,2), activation="relu", strides=(2,2)))
-
-    # Classification
-    model.add(Flatten())
-
-    model.add(Dense(512, activation='relu'))
-    model.add(Dropout(0.5))
-
-    model.add(Dense(512, activation='relu'))
-    model.add(Dropout(0.5))
-
-    model.add(Dense(216, activation='relu'))
-    model.add(Dropout(0.5))
-
-    model.add(Dense(classes, activation="softmax"))
-    
-    sgd = SGD(lr=0.01, clipvalue=0.5)
-    model.compile(loss=keras.losses.categorical_crossentropy, optimizer=sgd)
-
-    model.summary()
-    
-    return model
-    """
-    
-
     cnn = Sequential()
     cnn.add(Conv2D(filters = 16, kernel_size = (5,5), padding = 'same', activation = 'relu', input_shape = input_shape))
     cnn.add(MaxPooling2D(pool_size = (2,2)))
@@ -168,20 +130,20 @@ def training(data_dir, model, data, batch, epoch):
     
     resize = [200, 200]
     total_length = len(data)
-    cutoff = int(total_length*0.8)
+    cutoff = int(total_length*0.66)
     
     # shuffle data
-    #random.seed(447)
-    #random.shuffle(data)
+    random.seed(447)
+    random.shuffle(data)
     
     # model callbacks
     callback_visualizations = TensorBoard(histogram_freq=0, batch_size=batch, write_images=True)
     callback_checkpoints = ModelCheckpoint('model_checkpoint.h5', save_best_only=True)
     
-    plot_info = model.fit_generator(create_data_generator(image_dir, data, resize, 0, total_length, batch),
+    plot_info = model.fit_generator(create_data_generator(image_dir, data, resize, 0, cutoff, batch),
                                     steps_per_epoch=256,
-                                    validation_data=create_data_generator(val_dir, val_data, resize, 0, val_size, batch),
-                                    validation_steps=val_size//batch,
+                                    validation_data=create_data_generator(image_dir, data, resize, cutoff, total_length, batch),
+                                    validation_steps=(total_length-cutoff)//batch,
                                     epochs=epoch,
                                     callbacks=[callback_checkpoints,callback_visualizations]
                                     )
@@ -193,8 +155,8 @@ def training(data_dir, model, data, batch, epoch):
 ## plot model
 def plot_model(info):
     """ display a plot of the model """
-    plt.plot(info.history['acc'])
-    plt.plot(info.history['val_acc'])
+    plt.plot(1 - info.history['acc'])
+    plt.plot(1 - info.history['val_acc'])
     plt.title('Accuracy of model')
     plt.ylabel('Accuracy')
     plt.xlabel('Epoch')
@@ -217,9 +179,6 @@ def get_date_title_string(name):
     """ create the model json name """
     
     date_time = str(datetime.date.today())
-    
-    # TODO: only keep for overnight training
-    date_time = 'latest-run'
     
     date_time = date_time.replace(' ', '_').replace(':', '-')
     title = date_time + "_" + name
@@ -268,7 +227,7 @@ def evaluate_testing(model_file):
     total_test = len(LIST_DATA)
     resize = [200, 200]
     
-    prediction = model.predict_generator(create_data_generator(image_dir, LIST_DATA, resize, 0, total_test, 50, test=True), steps=10)
+    prediction = model.predict_generator(create_data_generator(image_dir, LIST_DATA, resize, 0, total_test, 43, test=True), steps=187)
     
     return prediction
 
@@ -288,5 +247,5 @@ def write_predicted_data(predict):
 
 
 run_model()
-#pred = evaluate_testing('latest-run_car-classifier')
-#write_predicted_data(pred)
+pred = evaluate_testing('2019-11-19_car-classifier')
+write_predicted_data(pred)
