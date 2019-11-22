@@ -57,12 +57,9 @@ def create_data_generator(path, data, size, start, cutoff, batch, test=False):
         for i in range(start, start + batch):
             image_data = data[i]
             label = np.zeros(196)
-            if (test):
-                image_path = path + image_data[4]
-            else:
-                image_path = path + image_data[5]
-                label[int(image_data[4]) - 1] = 1
-                
+            image_path = path + image_data[5]
+            label[int(image_data[4]) - 1] = 1
+            
             crop_points = [int(i) for i in image_data[:4]]
             image = get_car_pic_matrix(image_path, crop_points, size)
             
@@ -88,39 +85,35 @@ def initialize_model(input_shape, classes):
     """ initialize the model parameters and layers """
     
     cnn = Sequential()
-    cnn.add(Conv2D(filters = 16, kernel_size = (5,5), padding = 'same', activation = 'relu', input_shape = input_shape))
-    cnn.add(MaxPooling2D(pool_size = (2,2)))
-    cnn.add(BatchNormalization(axis = 1))
-    cnn.add(Dropout(0.22))
     
-    cnn.add(Conv2D(filters = 32, kernel_size = (5,5), padding = 'same', activation = 'relu', input_shape = input_shape))
-    cnn.add(MaxPooling2D(pool_size = (2,2)))
+    cnn.add(Conv2D(16, (5,5), activation = 'relu', input_shape = input_shape))
+    cnn.add(MaxPooling2D())
     cnn.add(BatchNormalization(axis = 1))
-    cnn.add(Dropout(0.22))
+    cnn.add(Dropout(0.3))
     
-    cnn.add(Conv2D(filters = 64, kernel_size = (4,4), padding = 'same', activation = 'relu', input_shape = input_shape))
-    cnn.add(MaxPooling2D(pool_size = (2,2)))
+    cnn.add(Conv2D(32, (5,5), activation = 'relu'))
+    cnn.add(MaxPooling2D())
+    cnn.add(BatchNormalization(axis = 1))
+    cnn.add(Dropout(0.25))
+    
+    cnn.add(Conv2D(64, (4,4), activation = 'relu'))
+    cnn.add(MaxPooling2D())
     cnn.add(BatchNormalization(axis = 1))
     cnn.add(Dropout(0.2))
     
-    cnn.add(Conv2D(filters = 96, kernel_size = (3,3), padding = 'same', activation = 'relu', input_shape = input_shape))
-    cnn.add(MaxPooling2D(pool_size = (2,2)))
+    cnn.add(Conv2D(128, (3,3), activation = 'relu'))
+    cnn.add(MaxPooling2D())
     cnn.add(BatchNormalization(axis = 1))
-    cnn.add(Dropout(0.18))
+    cnn.add(Dropout(0.2))
     
     cnn.add(Flatten())
     
     cnn.add(Dense(512, activation = 'relu'))
-    cnn.add(Dropout(0.5))
-    
-    cnn.add(Dense(512, activation = 'relu'))
-    cnn.add(Dropout(0.5))
-    
     cnn.add(Dense(256, activation = 'relu'))
-    cnn.add(Dropout(0.5))
-    
+    cnn.add(BatchNormalization())
     cnn.add(Dense(196, activation = 'sigmoid'))
-    cnn.compile(optimizer = 'adam', loss = 'categorical_crossentropy', metrics = ['accuracy'])
+    
+    cnn.compile(optimizer = 'adam', loss = 'mean_squared_error', metrics = ['accuracy'])
     cnn.summary()
     
     return cnn
@@ -134,13 +127,14 @@ def training(data_dir, model, data, batch, epoch):
     # variables
     image_dir = data_dir + "/images/"
     
-    val_dir = "./test_data/images/"
-    val_data = get_list_from_csv("./test_data/crop_size.csv")
-    val_size = len(val_data)
+    # use this if we want to use the testing data for validation
+    #val_dir = "./test_data/images/"
+    #val_data = get_list_from_csv("./test_data/crop_size.csv")
+    #val_size = len(val_data)
     
-    resize = [200, 200]
+    resize = [300, 300]
     total_length = len(data)
-    cutoff = int(total_length*0.66)
+    cutoff = int(total_length*0.6)
     
     # shuffle data
     random.seed(447)
@@ -165,13 +159,25 @@ def training(data_dir, model, data, batch, epoch):
 ## plot model
 def plot_model(info):
     """ display a plot of the model """
-    plt.plot(1 - info.history['acc'])
-    plt.plot(1 - info.history['val_acc'])
+    plt.plot(info.history['acc'])
+    plt.plot(info.history['val_acc'])
     plt.title('Accuracy of model')
     plt.ylabel('Accuracy')
     plt.xlabel('Epoch')
-    plt.legend(['Training', 'Validation'], loc='lower right')
+    plt.legend(['Training', 'Validation'], loc='upper left')
     plt.show()
+    title = get_date_title_string('percent-accuracy.png')
+    plt.savefig(title)
+    
+    plt.plot(info.history['loss'])
+    plt.plot(info.history['val_loss'])
+    plt.title('Loss of Model')
+    plt.ylabel('Loss')
+    plt.xlabel('Epoch')
+    plt.legend(['Training', 'Validation'], loc='upper right')
+    plt.show()
+    title = get_date_title_string('loss-accuracy.png')
+    plt.savefig(title)
 
 
 ## saving model
@@ -190,6 +196,8 @@ def get_date_title_string(name):
     
     date_time = str(datetime.date.today())
     
+    date_time = 'overnight-run'
+    
     date_time = date_time.replace(' ', '_').replace(':', '-')
     title = date_time + "_" + name
     return title
@@ -202,9 +210,9 @@ def run_model():
     DATA_DIR = "./data"
     LIST_DATA = get_list_from_csv(DATA_DIR + "/crop_size.csv")
     
-    model1 = initialize_model((200,200,3), 196)
+    model1 = initialize_model((300,300,3), 196)
     
-    model1 = training(DATA_DIR, model1, LIST_DATA, 64, 10)
+    model1 = training(DATA_DIR, model1, LIST_DATA, 32, 50)
     
     save_model_to_json(model1, name="car-classifier")
 
@@ -227,15 +235,14 @@ def evaluate_testing(model_file):
     
     # load the model in
     model = load_model_info(model_file)
-    sgd = SGD(lr=0.01, clipvalue=0.5)
-    model.compile(loss=keras.losses.categorical_crossentropy, optimizer=sgd)
+    model.compile(optimizer = 'adam', loss = 'mean_squared_error', metrics = ['accuracy'])
     
     # variables needed for prediction
     DATA_DIR = "./test_data"
     LIST_DATA = get_list_from_csv(DATA_DIR + "/crop_size.csv")
     image_dir = DATA_DIR + "/images/"
     total_test = len(LIST_DATA)
-    resize = [200, 200]
+    resize = [300, 300]
     
     prediction = model.predict_generator(create_data_generator(image_dir, LIST_DATA, resize, 0, total_test, 43, test=True), steps=187)
     
@@ -243,10 +250,10 @@ def evaluate_testing(model_file):
 
 
 ## return predicted data
-def write_predicted_data(predict):
+def write_predicted_data(predict, name="test"):
     """ write the predicted data to the correct format """
     
-    test_title = get_date_title_string('test')
+    test_title = get_date_title_string(name)
     file = open(test_title + '.txt', "w")
     print (str(len(predict)))
     for p in predict:
@@ -257,5 +264,5 @@ def write_predicted_data(predict):
 
 
 run_model()
-pred = evaluate_testing('2019-11-19_car-classifier')
-write_predicted_data(pred)
+pred = evaluate_testing('overnight-run_car-classifier')
+write_predicted_data(pred, name='overnight-run')
