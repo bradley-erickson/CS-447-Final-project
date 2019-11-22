@@ -3,3 +3,4 @@ logs/
 test_data/images/
 *.json
 *.h5
+*.txt
