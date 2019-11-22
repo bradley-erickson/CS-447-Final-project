@@ -109,11 +109,12 @@ def initialize_model(input_shape, classes):
     cnn.add(Flatten())
     
     cnn.add(Dense(512, activation = 'relu'))
+    cnn.add(BatchNormalization())
     cnn.add(Dense(256, activation = 'relu'))
     cnn.add(BatchNormalization())
     cnn.add(Dense(196, activation = 'sigmoid'))
     
-    cnn.compile(optimizer = 'adam', loss = 'mean_squared_error', metrics = ['accuracy'])
+    cnn.compile(optimizer = 'rmsprop', loss = 'mean_squared_error', metrics = ['accuracy'])
     cnn.summary()
     
     return cnn
@@ -166,8 +167,6 @@ def plot_model(info):
     plt.xlabel('Epoch')
     plt.legend(['Training', 'Validation'], loc='upper left')
     plt.show()
-    title = get_date_title_string('percent-accuracy.png')
-    plt.savefig(title)
     
     plt.plot(info.history['loss'])
     plt.plot(info.history['val_loss'])
@@ -176,9 +175,7 @@ def plot_model(info):
     plt.xlabel('Epoch')
     plt.legend(['Training', 'Validation'], loc='upper right')
     plt.show()
-    title = get_date_title_string('loss-accuracy.png')
-    plt.savefig(title)
-
+    
 
 ## saving model
 def save_model_to_json(model, name="model"):
@@ -196,8 +193,6 @@ def get_date_title_string(name):
     
     date_time = str(datetime.date.today())
     
-    date_time = 'overnight-run'
-    
     date_time = date_time.replace(' ', '_').replace(':', '-')
     title = date_time + "_" + name
     return title
@@ -212,7 +207,7 @@ def run_model():
     
     model1 = initialize_model((300,300,3), 196)
     
-    model1 = training(DATA_DIR, model1, LIST_DATA, 32, 50)
+    model1 = training(DATA_DIR, model1, LIST_DATA, 32, 60)
     
     save_model_to_json(model1, name="car-classifier")
 
@@ -264,5 +259,5 @@ def write_predicted_data(predict, name="test"):
 
 
 run_model()
-pred = evaluate_testing('overnight-run_car-classifier')
-write_predicted_data(pred, name='overnight-run')
+pred = evaluate_testing('2019-11-23_car-classifier')
+write_predicted_data(pred, name='car-classifier_test')
