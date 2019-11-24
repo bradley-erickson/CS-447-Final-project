@@ -259,5 +259,5 @@ def write_predicted_data(predict, name="test"):
 
 
 run_model()
-pred = evaluate_testing('2019-11-23_car-classifier')
+pred = evaluate_testing('2019-11-24_car-classifier')
 write_predicted_data(pred, name='car-classifier_test')
