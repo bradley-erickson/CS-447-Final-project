@@ -17,10 +17,9 @@ import random
 
 ## keras imports
 from keras.models import Sequential, model_from_json
-from keras.layers import Dense, Dropout, Flatten, Lambda
-from keras.layers import Conv2D, MaxPooling2D, MaxPool2D, BatchNormalization
+from keras.layers import Dense, Dropout, Flatten
+from keras.layers import Conv2D, MaxPooling2D, BatchNormalization
 from keras.callbacks import ModelCheckpoint, TensorBoard
-from keras.optimizers import SGD
 
 
 # methods
@@ -86,7 +85,7 @@ def initialize_model(input_shape, classes):
     
     cnn = Sequential()
     
-    cnn.add(Conv2D(16, (5,5), activation = 'relu', input_shape = input_shape))
+    cnn.add(Conv2D(16, (7,7), activation = 'relu', input_shape = input_shape))
     cnn.add(MaxPooling2D())
     cnn.add(BatchNormalization(axis = 1))
     cnn.add(Dropout(0.3))
@@ -96,12 +95,12 @@ def initialize_model(input_shape, classes):
     cnn.add(BatchNormalization(axis = 1))
     cnn.add(Dropout(0.25))
     
-    cnn.add(Conv2D(64, (4,4), activation = 'relu'))
+    cnn.add(Conv2D(64, (3,3), activation = 'relu'))
     cnn.add(MaxPooling2D())
     cnn.add(BatchNormalization(axis = 1))
     cnn.add(Dropout(0.2))
     
-    cnn.add(Conv2D(128, (3,3), activation = 'relu'))
+    cnn.add(Conv2D(128, (1,1), activation = 'relu'))
     cnn.add(MaxPooling2D())
     cnn.add(BatchNormalization(axis = 1))
     cnn.add(Dropout(0.2))
@@ -112,7 +111,7 @@ def initialize_model(input_shape, classes):
     cnn.add(BatchNormalization())
     cnn.add(Dense(256, activation = 'relu'))
     cnn.add(BatchNormalization())
-    cnn.add(Dense(196, activation = 'sigmoid'))
+    cnn.add(Dense(classes, activation = 'sigmoid'))
     
     cnn.compile(optimizer = 'rmsprop', loss = 'mean_squared_error', metrics = ['accuracy'])
     cnn.summary()
@@ -133,12 +132,12 @@ def training(data_dir, model, data, batch, epoch):
     #val_data = get_list_from_csv("./test_data/crop_size.csv")
     #val_size = len(val_data)
     
-    resize = [300, 300]
+    resize = [350, 350]
     total_length = len(data)
     cutoff = int(total_length*0.6)
     
     # shuffle data
-    random.seed(447)
+    random.seed(410)
     random.shuffle(data)
     
     # model callbacks
@@ -205,9 +204,9 @@ def run_model():
     DATA_DIR = "./data"
     LIST_DATA = get_list_from_csv(DATA_DIR + "/crop_size.csv")
     
-    model1 = initialize_model((300,300,3), 196)
+    model1 = initialize_model((350,350,3), 196)
     
-    model1 = training(DATA_DIR, model1, LIST_DATA, 32, 60)
+    model1 = training(DATA_DIR, model1, LIST_DATA, 32, 75)
     
     save_model_to_json(model1, name="car-classifier")
 
@@ -237,7 +236,7 @@ def evaluate_testing(model_file):
     LIST_DATA = get_list_from_csv(DATA_DIR + "/crop_size.csv")
     image_dir = DATA_DIR + "/images/"
     total_test = len(LIST_DATA)
-    resize = [300, 300]
+    resize = [350, 350]
     
     prediction = model.predict_generator(create_data_generator(image_dir, LIST_DATA, resize, 0, total_test, 43, test=True), steps=187)
     
@@ -258,6 +257,6 @@ def write_predicted_data(predict, name="test"):
     
 
 
-run_model()
-pred = evaluate_testing('2019-11-24_car-classifier')
+#run_model()
+pred = evaluate_testing('2019-11-27_car-classifier')
 write_predicted_data(pred, name='car-classifier_test')
