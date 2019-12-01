@@ -132,13 +132,14 @@ def training(data_dir, model, data, batch, epoch):
     #val_data = get_list_from_csv("./test_data/crop_size.csv")
     #val_size = len(val_data)
     
-    resize = [350, 350]
+    resize = [256, 256]
     total_length = len(data)
-    cutoff = int(total_length*0.6)
+    cutoff = int(total_length*0.5)
     
     # shuffle data
-    random.seed(410)
-    random.shuffle(data)
+    #random.seed(410)
+    #random.shuffle(data)
+    #random.shuffle(val_data)
     
     # model callbacks
     callback_visualizations = TensorBoard(histogram_freq=0, batch_size=batch, write_images=True)
@@ -147,7 +148,7 @@ def training(data_dir, model, data, batch, epoch):
     plot_info = model.fit_generator(create_data_generator(image_dir, data, resize, 0, cutoff, batch),
                                     steps_per_epoch=256,
                                     validation_data=create_data_generator(image_dir, data, resize, cutoff, total_length, batch),
-                                    validation_steps=(total_length-cutoff)//batch,
+                                    validation_steps=(total_length - cutoff)//batch,
                                     epochs=epoch,
                                     callbacks=[callback_checkpoints,callback_visualizations]
                                     )
@@ -204,9 +205,9 @@ def run_model():
     DATA_DIR = "./data"
     LIST_DATA = get_list_from_csv(DATA_DIR + "/crop_size.csv")
     
-    model1 = initialize_model((350,350,3), 196)
+    model1 = initialize_model((256,256,3), 196)
     
-    model1 = training(DATA_DIR, model1, LIST_DATA, 32, 75)
+    model1 = training(DATA_DIR, model1, LIST_DATA, 64, 60)
     
     save_model_to_json(model1, name="car-classifier")
 
@@ -236,7 +237,7 @@ def evaluate_testing(model_file):
     LIST_DATA = get_list_from_csv(DATA_DIR + "/crop_size.csv")
     image_dir = DATA_DIR + "/images/"
     total_test = len(LIST_DATA)
-    resize = [350, 350]
+    resize = [256, 256]
     
     prediction = model.predict_generator(create_data_generator(image_dir, LIST_DATA, resize, 0, total_test, 43, test=True), steps=187)
     
@@ -257,6 +258,6 @@ def write_predicted_data(predict, name="test"):
     
 
 
-#run_model()
-pred = evaluate_testing('2019-11-27_car-classifier')
+run_model()
+pred = evaluate_testing('2019-12-02_car-classifier')
 write_predicted_data(pred, name='car-classifier_test')
