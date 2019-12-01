@@ -1,6 +1,7 @@
 data/images/
-logs/
 test_data/images/
+predict_data/images/
+logs/
 *.json
 *.h5
 *.txt
