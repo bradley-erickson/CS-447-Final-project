@@ -73,7 +73,7 @@ def make_prediction(model_file, predict):
             break
         
     image_dir = DATA_DIR + "/images/" + predict
-    resize = [300, 300]
+    resize = [256, 256]
     
     prediction = model.predict(get_car_pic_matrix(image_dir, crop, resize))
     print ('Prediction made')
@@ -91,6 +91,6 @@ def get_predicted_name(predict):
     return names[data + 1]
 
 
-prediction = make_prediction("2019-11-23_car-classifier", "00115.jpg")
+prediction = make_prediction("2019-12-02_car-classifier", "test04.jpg")
 name = get_predicted_name(prediction)
 print (name)
